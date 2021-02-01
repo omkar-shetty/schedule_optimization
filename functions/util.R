@@ -20,8 +20,9 @@ cost <- function(x){
   min_max_penalty <- min_max_constraints(th)
   demand_penalty <- demand_constraints(th)
   shift_penalty <- shift_continuity_constraint(th)
+  emp_avail_penalty <- employee_avail_constraint(th)
   
-  cost <- cost + min_max_penalty + demand_penalty + shift_penalty
+  cost <- cost + min_max_penalty + demand_penalty + shift_penalty + emp_avail_penalty
   
   return(-cost)
 }
@@ -68,7 +69,7 @@ shift_continuity_constraint <- function(dat){
     
     sub_cost <- 0
     dat_subset <- dat[tm == m,]
-    dat_subset[,xlag := shift(x,n = 1)]
+    dat_subset[,xlag := shift(x,n = -1)]
     dat_subset[,z := ifelse(x == 0 & xlag == 1,1,0)]
     
     sub_cost <- (max(dat_subset[,sum(z,na.rm = T)],1) - 1)*
@@ -86,4 +87,17 @@ shift_continuity_constraint <- function(dat){
   
   return(penalty_cost)
   
+}
+
+employee_avail_constraint <- function(th){
+  
+  penalty_cost <- 0
+  
+  avail_dat <- melt(config$avail, id.vars = 'hour' ,formula = 'hour ~.')
+  setnames(avail_dat, c('variable','value'),c('tm','avail'))
+  
+  final_match <- merge(avail_dat, th, by = c('hour','tm'))
+  penalty_cost <- final_match[avail < x, sum(x - avail)] * config$avail_penalty
+  
+  return(penalty_cost)
 }
